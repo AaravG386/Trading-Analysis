@@ -1,0 +1,42 @@
+{
+  "report_created_at_utc": "2026-11-22T17:41:19.141852+00:00",
+  "source_type": "csv_directory",
+  "fast": 20,
+  "slow": 50,
+  "train_size": 504,
+  "test_size": 126,
+  "allocation": 0.5,
+  "cost_grid_bps": [
+    0.0,
+    5.0,
+    10.0,
+    20.0
+  ],
+  "snapshots": [
+    {
+      "asset": "INFY.NS",
+      "path": "prices/01_INFY.NS.csv",
+      "sha256": "ba31f52303cfbc641ee1c0f68b2a0298cf01bc9319a90c375cfb031b7c5863e4",
+      "rows": 1706,
+      "first_price_date": "2020-01-01",
+      "last_price_date": "2026-11-20"
+    },
+    {
+      "asset": "RELIANCE.NS",
+      "path": "prices/02_RELIANCE.NS.csv",
+      "sha256": "b9c8631cc65f4317ec44195d0fc4fd1dcf77b810ee4298dcd003266e6edc668f",
+      "rows": 1706,
+      "first_price_date": "2020-01-01",
+      "last_price_date": "2026-11-20"
+    },
+    {
+      "asset": "TCS.NS",
+      "path": "prices/03_TCS.NS.csv",
+      "sha256": "1d7dc64b8b4052e14cb7f86e9ed0dfb73f3010aee144aedcad2e1282982b8fff",
+      "rows": 1706,
+      "first_price_date": "2020-01-01",
+      "last_price_date": "2026-11-20"
+    }
+  ],
+  "method": "fixed windows; independent out-of-sample folds per asset and cost"
+}

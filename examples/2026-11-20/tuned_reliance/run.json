@@ -1,0 +1,24 @@
+{
+  "source": "RELIANCE.NS.csv",
+  "source_type": "csv",
+  "first_price_date": "2020-01-01",
+  "last_price_date": "2026-11-20",
+  "fast_grid": [
+    10,
+    20,
+    30
+  ],
+  "slow_grid": [
+    50,
+    100
+  ],
+  "train_size": 504,
+  "test_size": 126,
+  "cost_bps_per_one_way_trade": 5.0,
+  "allocation": 0.5,
+  "selection": "highest net training Sharpe; rolling training window",
+  "report_created_at_utc": "2026-11-22T17:41:17.327380+00:00",
+  "price_snapshot": "prices.csv",
+  "price_snapshot_sha256": "b9c8631cc65f4317ec44195d0fc4fd1dcf77b810ee4298dcd003266e6edc668f",
+  "price_rows": 1706
+}
