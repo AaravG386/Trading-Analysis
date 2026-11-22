@@ -26,6 +26,7 @@ class WalkForwardTests(unittest.TestCase):
             block = result.daily[result.daily["fold"] == fold]
             self.assertEqual(block["held_position"].iloc[0], 0)
             self.assertEqual(block["benchmark_return"].iloc[0], 0)
+            self.assertEqual(block["allocation_benchmark_return"].iloc[0], 0)
             self.assertEqual(block["position"].iloc[-1], 0)
             self.assertAlmostEqual(block["cost"].sum(), block["turnover"].sum() * 0.001)
             self.assertGreaterEqual(block["turnover"].sum(), 2)
