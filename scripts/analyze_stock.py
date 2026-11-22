@@ -8,29 +8,10 @@ import math
 from pathlib import Path
 import sys
 
-import pandas as pd
-
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from trading_analysis import backtest_moving_average, performance_metrics
-
-
-def load_close(args: argparse.Namespace) -> pd.Series:
-    if args.csv:
-        data = pd.read_csv(args.csv, parse_dates=["Date"])
-        if "Close" not in data:
-            raise ValueError("CSV must have Date and Close columns; use adjusted Close prices")
-        return data.set_index("Date")["Close"]
-    import yfinance as yf
-
-    data = yf.download(args.ticker, start=args.start, end=args.end, auto_adjust=True, progress=False)
-    if data.empty:
-        raise ValueError(f"no price data returned for {args.ticker}")
-    close = data["Close"]
-    if isinstance(close, pd.DataFrame):
-        if close.shape[1] != 1:
-            raise ValueError("expected one ticker")
-        close = close.iloc[:, 0]
-    return close
+from trading_analysis.data import download_close, read_close_csv
+from trading_analysis.report import write_report
 
 
 def main() -> None:
@@ -45,15 +26,29 @@ def main() -> None:
     parser.add_argument("--cost-bps", type=float, default=5.0)
     parser.add_argument("--allocation", type=float, default=1.0, help="fraction of capital invested on a long signal")
     parser.add_argument("--output", type=Path, help="optional CSV path for daily backtest data")
+    parser.add_argument("--report-dir", type=Path, help="optional directory for CSV, JSON, and equity chart")
     args = parser.parse_args()
 
-    results = backtest_moving_average(load_close(args), fast=args.fast, slow=args.slow, cost_bps=args.cost_bps, allocation=args.allocation)
+    close = read_close_csv(args.csv) if args.csv else download_close(args.ticker, start=args.start, end=args.end)
+    results = backtest_moving_average(close, fast=args.fast, slow=args.slow, cost_bps=args.cost_bps, allocation=args.allocation)
     metrics = performance_metrics(results)
     clean_metrics = {key: value if not isinstance(value, float) or math.isfinite(value) else None for key, value in metrics.items()}
     print(json.dumps(clean_metrics, indent=2, allow_nan=False))
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         results.to_csv(args.output, index_label="Date")
+    if args.report_dir:
+        write_report(results, metrics, args.report_dir, run_config={
+            "source": args.ticker if args.ticker else args.csv.name,
+            "source_type": "ticker" if args.ticker else "csv",
+            "first_price_date": str(close.index[0].date()),
+            "last_price_date": str(close.index[-1].date()),
+            "fast": args.fast,
+            "slow": args.slow,
+            "cost_bps_per_one_way_trade": args.cost_bps,
+            "allocation": args.allocation,
+            "execution": "signal at close; fill next close; earn subsequent close-to-close return",
+        })
 
 
 if __name__ == "__main__":

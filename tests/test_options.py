@@ -30,6 +30,21 @@ class OptionsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             implied_volatility(120, 100, 100, 1, 0.03)
 
+    def test_dividend_parity_and_put_greeks(self):
+        spot, strike, years, rate, dividend_yield, volatility = 90, 100, 0.8, -0.01, 0.02, 0.3
+        call = black_scholes(spot, strike, years, rate, volatility, dividend_yield=dividend_yield)
+        put = black_scholes(spot, strike, years, rate, volatility, dividend_yield=dividend_yield, option_type="put")
+        expected = spot * math.exp(-dividend_yield * years) - strike * math.exp(-rate * years)
+        self.assertAlmostEqual(call.price - put.price, expected, places=8)
+        self.assertLess(put.delta, 0)
+        h = 1e-4
+        rate_up = black_scholes(spot, strike, years, rate + h, volatility, dividend_yield=dividend_yield, option_type="put")
+        rate_down = black_scholes(spot, strike, years, rate - h, volatility, dividend_yield=dividend_yield, option_type="put")
+        self.assertAlmostEqual(put.rho, (rate_up.price - rate_down.price) / (2 * h), places=4)
+        time_up = black_scholes(spot, strike, years + h, rate, volatility, dividend_yield=dividend_yield, option_type="put")
+        time_down = black_scholes(spot, strike, years - h, rate, volatility, dividend_yield=dividend_yield, option_type="put")
+        self.assertAlmostEqual(put.theta, -(time_up.price - time_down.price) / (2 * h), places=4)
+
 
 if __name__ == "__main__":
     unittest.main()

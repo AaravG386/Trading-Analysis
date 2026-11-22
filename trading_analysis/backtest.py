@@ -1,8 +1,8 @@
 """Long-or-cash moving-average backtest using adjusted daily closing prices.
 
-Signals use a day's closing price. A signal is filled at the *next* close;
-the resulting position first earns the following close-to-close return. This
-two-row shift avoids using a closing price before it was observable.
+Signals use a day's closing price. A signal is filled at the next close;
+the resulting position first earns the following close-to-close return.
+Trading costs are charged on the fill date, after that day's market return.
 """
 
 from __future__ import annotations
@@ -28,8 +28,8 @@ def _validate_close(close: pd.Series, slow: int) -> pd.Series:
         raise ValueError("closing prices must be finite and non-missing")
     if (values <= 0).any():
         raise ValueError("closing prices must be positive")
-    if len(values) < slow + 3:
-        raise ValueError("need at least slow + 3 daily closing prices")
+    if len(values) < slow + 2:
+        raise ValueError("need at least slow + 2 daily closing prices")
     return values.rename("close")
 
 
@@ -67,19 +67,26 @@ def backtest_moving_average(
     frame["slow_ma"] = prices.rolling(slow, min_periods=slow).mean()
     target = (frame["fast_ma"] > frame["slow_ma"]).astype(float)
     frame["signal"] = target.where(frame["slow_ma"].notna())
-    frame["position"] = frame["signal"].shift(2) * allocation
+    # The previous close's signal can be filled only at today's close.
+    frame["position"] = frame["signal"].shift(1) * allocation
     frame["market_return"] = prices.pct_change()
     frame = frame.loc[frame["position"].notna()].copy()
     if frame.empty:
         raise ValueError("no valid strategy returns after the execution delay")
 
-    prior_position = frame["position"].shift(1).fillna(0.0)
-    frame["turnover"] = (frame["position"] - prior_position).abs()
+    # Yesterday's post-trade position earns today's market return. The new
+    # position is established at today's close and incurs today's cost.
+    frame["held_position"] = frame["position"].shift(1).fillna(0.0)
+    frame["turnover"] = (frame["position"] - frame["held_position"]).abs()
     frame["cost"] = frame["turnover"] * cost_bps / 10_000
-    frame["gross_return"] = frame["position"] * frame["market_return"]
+    frame["gross_return"] = frame["held_position"] * frame["market_return"]
     frame["net_return"] = frame["gross_return"] - frame["cost"]
+    # Buy-and-hold purchases at the first reported close, so it cannot earn
+    # the return that arrived before that close.
+    frame["benchmark_return"] = frame["market_return"]
+    frame.iloc[0, frame.columns.get_loc("benchmark_return")] = 0.0
     frame["strategy_equity"] = (1.0 + frame["net_return"]).cumprod()
-    frame["benchmark_equity"] = (1.0 + frame["market_return"]).cumprod()
+    frame["benchmark_equity"] = (1.0 + frame["benchmark_return"]).cumprod()
     return frame
 
 
@@ -89,7 +96,7 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
     Sharpe uses a zero risk-free rate. Annualization assumes daily observations
     and ``periods_per_year`` trading days. A zero-volatility Sharpe is NaN.
     """
-    required = {"net_return", "market_return", "strategy_equity", "benchmark_equity", "turnover", "position"}
+    required = {"net_return", "benchmark_return", "strategy_equity", "benchmark_equity", "turnover", "cost", "position", "held_position"}
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"missing columns: {', '.join(sorted(missing))}")
@@ -98,14 +105,16 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
 
     result: dict[str, float | int] = {
         "observations": len(frame),
+        "trade_events": int((frame["turnover"] > 0).sum()),
         "turnover_units": float(frame["turnover"].sum()),
-        "time_in_market": float((frame["position"] > 0).mean()),
-        "average_exposure": float(frame["position"].mean()),
-        "maximum_exposure": float(frame["position"].max()),
+        "summed_cost_rates": float(frame["cost"].sum()),
+        "time_in_market": float((frame["held_position"] > 0).mean()),
+        "average_exposure": float(frame["held_position"].mean()),
+        "maximum_exposure": float(frame["held_position"].max()),
     }
     for label, returns_col, equity_col in (
         ("strategy", "net_return", "strategy_equity"),
-        ("benchmark", "market_return", "benchmark_equity"),
+        ("benchmark", "benchmark_return", "benchmark_equity"),
     ):
         returns = frame[returns_col]
         equity = frame[equity_col]
@@ -121,4 +130,5 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
             f"{label}_sharpe": sharpe,
             f"{label}_max_drawdown": float(drawdown.min()),
         })
+    result["return_gap_vs_benchmark"] = result["strategy_total_return"] - result["benchmark_total_return"]
     return result

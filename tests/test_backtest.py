@@ -18,7 +18,11 @@ class BacktestTests(unittest.TestCase):
         # Signal after close at index 2, execution at close index 3,
         # first position return is the index 3 -> 4 close-to-close move.
         self.assertEqual(result["position"].iloc[0], 1.0)
-        self.assertAlmostEqual(result["gross_return"].iloc[0], 104 / 103 - 1)
+        self.assertEqual(result["held_position"].iloc[0], 0.0)
+        self.assertEqual(result["gross_return"].iloc[0], 0.0)
+        self.assertEqual(result["benchmark_return"].iloc[0], 0.0)
+        self.assertEqual(result["benchmark_equity"].iloc[0], 1.0)
+        self.assertAlmostEqual(result["gross_return"].iloc[1], 104 / 103 - 1)
         self.assertEqual(result["signal"].iloc[0], 1.0)
 
     def test_costs_are_charged_on_entries_and_exits(self):
@@ -26,6 +30,7 @@ class BacktestTests(unittest.TestCase):
         costly = backtest_moving_average(self.close, fast=2, slow=3, cost_bps=10)
         self.assertGreater(costly["turnover"].sum(), 1)
         self.assertAlmostEqual(costly["cost"].sum(), costly["turnover"].sum() * 0.001)
+        self.assertAlmostEqual(costly["cost"].iloc[0], 0.001)
         self.assertLess(costly["strategy_equity"].iloc[-1], free["strategy_equity"].iloc[-1])
         self.assertAlmostEqual(costly["benchmark_equity"].iloc[-1], free["benchmark_equity"].iloc[-1])
 
@@ -35,6 +40,9 @@ class BacktestTests(unittest.TestCase):
         self.assertEqual(metrics["observations"], len(result))
         self.assertAlmostEqual(metrics["strategy_total_return"], result["strategy_equity"].iloc[-1] - 1)
         self.assertAlmostEqual(metrics["benchmark_total_return"], result["benchmark_equity"].iloc[-1] - 1)
+        self.assertEqual(metrics["trade_events"], int((result["turnover"] > 0).sum()))
+        self.assertAlmostEqual(metrics["summed_cost_rates"], result["cost"].sum())
+        self.assertAlmostEqual(metrics["return_gap_vs_benchmark"], metrics["strategy_total_return"] - metrics["benchmark_total_return"])
         self.assertLessEqual(metrics["strategy_max_drawdown"], 0)
         self.assertTrue(math.isfinite(metrics["strategy_annualized_volatility"]))
 
@@ -42,6 +50,7 @@ class BacktestTests(unittest.TestCase):
         full = backtest_moving_average(self.close, fast=2, slow=3, allocation=1.0, cost_bps=0)
         half = backtest_moving_average(self.close, fast=2, slow=3, allocation=0.5, cost_bps=0)
         self.assertTrue((half["position"] <= 0.5).all())
+        self.assertTrue((half["held_position"] <= 0.5).all())
         pd.testing.assert_series_equal(half["gross_return"], full["gross_return"] * 0.5)
         self.assertAlmostEqual(performance_metrics(half)["maximum_exposure"], 0.5)
 
