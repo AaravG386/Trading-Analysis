@@ -85,8 +85,10 @@ def backtest_moving_average(
     # the return that arrived before that close.
     frame["benchmark_return"] = frame["market_return"]
     frame.iloc[0, frame.columns.get_loc("benchmark_return")] = 0.0
+    frame["allocation_benchmark_return"] = frame["benchmark_return"] * allocation
     frame["strategy_equity"] = (1.0 + frame["net_return"]).cumprod()
     frame["benchmark_equity"] = (1.0 + frame["benchmark_return"]).cumprod()
+    frame["allocation_benchmark_equity"] = (1.0 + frame["allocation_benchmark_return"]).cumprod()
     return frame
 
 
@@ -96,7 +98,11 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
     Sharpe uses a zero risk-free rate. Annualization assumes daily observations
     and ``periods_per_year`` trading days. A zero-volatility Sharpe is NaN.
     """
-    required = {"net_return", "benchmark_return", "strategy_equity", "benchmark_equity", "turnover", "cost", "position", "held_position"}
+    required = {
+        "net_return", "benchmark_return", "allocation_benchmark_return",
+        "strategy_equity", "benchmark_equity", "allocation_benchmark_equity",
+        "turnover", "cost", "position", "held_position",
+    }
     missing = required - set(frame.columns)
     if missing:
         raise ValueError(f"missing columns: {', '.join(sorted(missing))}")
@@ -115,6 +121,7 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
     for label, returns_col, equity_col in (
         ("strategy", "net_return", "strategy_equity"),
         ("benchmark", "benchmark_return", "benchmark_equity"),
+        ("allocation_benchmark", "allocation_benchmark_return", "allocation_benchmark_equity"),
     ):
         returns = frame[returns_col]
         equity = frame[equity_col]
@@ -131,4 +138,7 @@ def performance_metrics(frame: pd.DataFrame, *, periods_per_year: int = TRADING_
             f"{label}_max_drawdown": float(drawdown.min()),
         })
     result["return_gap_vs_benchmark"] = result["strategy_total_return"] - result["benchmark_total_return"]
+    result["return_gap_vs_allocation_benchmark"] = (
+        result["strategy_total_return"] - result["allocation_benchmark_total_return"]
+    )
     return result

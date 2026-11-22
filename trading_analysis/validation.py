@@ -86,6 +86,7 @@ def walk_forward_moving_average(
         test.iloc[0, test.columns.get_loc("turnover")] = test["position"].iloc[0]
         test.iloc[0, test.columns.get_loc("gross_return")] = 0.0
         test.iloc[0, test.columns.get_loc("benchmark_return")] = 0.0
+        test.iloc[0, test.columns.get_loc("allocation_benchmark_return")] = 0.0
         final_held_position = float(test["held_position"].iloc[-1])
         test.iloc[-1, test.columns.get_loc("turnover")] = final_held_position
         test.iloc[-1, test.columns.get_loc("position")] = 0.0
@@ -93,6 +94,7 @@ def walk_forward_moving_average(
         test["net_return"] = test["gross_return"] - test["cost"]
         test["strategy_equity"] = (1 + test["net_return"]).cumprod()
         test["benchmark_equity"] = (1 + test["benchmark_return"]).cumprod()
+        test["allocation_benchmark_equity"] = (1 + test["allocation_benchmark_return"]).cumprod()
         test["fold"] = fold
         test["selected_fast"] = fast
         test["selected_slow"] = slow
@@ -116,4 +118,5 @@ def walk_forward_moving_average(
     daily = pd.concat(daily_parts)
     daily["strategy_equity"] = (1 + daily["net_return"]).cumprod()
     daily["benchmark_equity"] = (1 + daily["benchmark_return"]).cumprod()
+    daily["allocation_benchmark_equity"] = (1 + daily["allocation_benchmark_return"]).cumprod()
     return WalkForwardResult(daily=daily, folds=pd.DataFrame(fold_rows), metrics=performance_metrics(daily))

@@ -53,6 +53,15 @@ class BacktestTests(unittest.TestCase):
         self.assertTrue((half["held_position"] <= 0.5).all())
         pd.testing.assert_series_equal(half["gross_return"], full["gross_return"] * 0.5)
         self.assertAlmostEqual(performance_metrics(half)["maximum_exposure"], 0.5)
+        pd.testing.assert_series_equal(
+            half["allocation_benchmark_return"],
+            half["benchmark_return"] * 0.5,
+            check_names=False,
+        )
+        self.assertAlmostEqual(
+            performance_metrics(half)["allocation_benchmark_total_return"],
+            half["allocation_benchmark_equity"].iloc[-1] - 1,
+        )
 
     def test_rejects_bad_prices(self):
         with self.assertRaises(ValueError):

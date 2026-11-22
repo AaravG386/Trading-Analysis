@@ -12,7 +12,8 @@ def read_close_csv(path: str | Path) -> pd.Series:
     if not {"Date", "Close"}.issubset(data.columns):
         raise ValueError("CSV must contain Date and adjusted Close columns")
     dates = pd.to_datetime(data["Date"], errors="raise")
-    return pd.Series(data["Close"].to_numpy(), index=pd.DatetimeIndex(dates), name="Close")
+    close = pd.to_numeric(data["Close"], errors="raise").astype(float)
+    return pd.Series(close.to_numpy(), index=pd.DatetimeIndex(dates), name="Close")
 
 
 def download_close(ticker: str, *, start: str = "2023-01-01", end: str | None = None) -> pd.Series:

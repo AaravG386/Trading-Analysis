@@ -38,7 +38,7 @@ def main() -> None:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         results.to_csv(args.output, index_label="Date")
     if args.report_dir:
-        write_report(results, metrics, args.report_dir, run_config={
+        write_report(results, metrics, args.report_dir, prices=close, run_config={
             "source": args.ticker if args.ticker else args.csv.name,
             "source_type": "ticker" if args.ticker else "csv",
             "first_price_date": str(close.index[0].date()),

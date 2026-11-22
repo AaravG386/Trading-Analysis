@@ -45,7 +45,7 @@ def main() -> None:
         train_size=args.train_size, test_size=args.test_size,
         cost_bps=args.cost_bps, allocation=args.allocation,
     )
-    write_report(result.daily, result.metrics, args.report_dir, folds=result.folds, run_config={
+    write_report(result.daily, result.metrics, args.report_dir, folds=result.folds, prices=close, run_config={
         "source": args.ticker if args.ticker else args.csv.name,
         "source_type": "ticker" if args.ticker else "csv",
         "first_price_date": str(close.index[0].date()),
